@@ -832,6 +832,122 @@
       .stats-grid { grid-template-columns: 1fr; }
       .leaderboard-wrap { padding: 16px; }
     }
+
+    /* Tab bar */
+    .tab-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid var(--line);
+      padding-bottom: 0;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      padding: 12px 16px;
+      background: transparent;
+      border: none;
+      border-bottom: 3px solid transparent;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all .2s ease;
+      border-radius: 0;
+    }
+    .tab-btn:hover {
+      color: var(--accent-strong);
+      transform: none;
+    }
+    .tab-btn.active {
+      color: var(--accent-strong);
+      border-bottom-color: var(--accent-strong);
+    }
+    .tab-panel {
+      display: none;
+    }
+    .tab-panel.active {
+      display: block;
+    }
+
+    /* Vote grid */
+    .vote-instruction {
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 16px;
+      line-height: 1.7;
+    }
+    .vote-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .vote-card {
+      border: 2px solid var(--line);
+      border-radius: 14px;
+      padding: 14px 12px;
+      background: #fff;
+      cursor: pointer;
+      text-align: center;
+      transition: all .2s ease;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .vote-card:hover {
+      border-color: var(--accent);
+      background: var(--soft);
+    }
+    .vote-card.selected {
+      border-color: var(--accent-strong);
+      background: linear-gradient(180deg, #eaf4ff, #dce9f7);
+      box-shadow: 0 4px 12px rgba(45, 90, 150, 0.12);
+    }
+    .vote-card .vote-code {
+      font-weight: 800;
+      font-size: 18px;
+      color: var(--accent-strong);
+      margin-bottom: 4px;
+    }
+    .vote-card .vote-cn {
+      font-size: 13px;
+      color: var(--text);
+      font-weight: 600;
+    }
+    .vote-card .vote-check {
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--accent-strong);
+      opacity: 0;
+      transition: opacity .2s ease;
+    }
+    .vote-card.selected .vote-check {
+      opacity: 1;
+    }
+    .vote-submit-area {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    .vote-already {
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+      padding: 20px;
+      background: var(--soft);
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      margin-bottom: 16px;
+    }
+
+    @media (max-width: 600px) {
+      .vote-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .tab-btn {
+        padding: 10px 12px;
+        font-size: 13px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -843,6 +959,8 @@
         <div class="hero-actions hero-actions-single">
           <button id="startBtn" class="btn-primary">开始测试</button>
           <button id="leaderboardBtn" class="btn-secondary">商院人格排行榜</button>
+          <button id="popularVoteBtn" class="btn-secondary">🔥 最受欢迎人格投票</button>
+          <button id="hatedVoteBtn" class="btn-secondary">💀 最被讨厌人格投票</button>
         </div>
         <div style="padding-top: 2rem; display: flex; flex-direction: column; font-size: 13px; color: var(--muted);">
           <span>
@@ -933,30 +1051,96 @@
 
     <section id="leaderboard" class="screen">
       <div class="leaderboard-wrap card">
-        <h2>武汉商学院 · 商院人格排行榜</h2>
-        <div class="leaderboard-intro">
+        <h2 id="leaderboardTitle">武汉商学院 · 商院人格排行榜</h2>
+        <div class="leaderboard-intro" id="leaderboardIntro">
           所有武商院同学测试结果的统计，看看哪种人格在校内人数最多！
         </div>
 
-        <div class="stats-box">
-          <div class="stats-grid">
-            <div class="stats-item">
-              <div class="k">总测试人数</div>
-              <div class="v" id="totalCount">0</div>
+        <div class="tab-bar">
+          <button class="tab-btn active" data-tab="rank">📊 人格分布</button>
+          <button class="tab-btn" data-tab="popular">🔥 最受欢迎</button>
+          <button class="tab-btn" data-tab="hated">💀 最被讨厌</button>
+        </div>
+
+        <!-- 人格分布 (原有的排行榜) -->
+        <div id="tab-rank" class="tab-panel active">
+          <div class="stats-box">
+            <div class="stats-grid">
+              <div class="stats-item">
+                <div class="k">总测试人数</div>
+                <div class="v" id="totalCount">0</div>
+              </div>
+              <div class="stats-item">
+                <div class="k">人格类型数</div>
+                <div class="v" id="typeCount">0</div>
+              </div>
+              <div class="stats-item">
+                <div class="k">第一名占比</div>
+                <div class="v" id="topPercent">0%</div>
+              </div>
             </div>
-            <div class="stats-item">
-              <div class="k">人格类型数</div>
-              <div class="v" id="typeCount">0</div>
+          </div>
+          <div id="leaderboardList" class="leaderboard-list"></div>
+        </div>
+
+        <!-- 最受欢迎投票 -->
+        <div id="tab-popular" class="tab-panel">
+          <div id="popularVoteArea">
+            <div class="vote-instruction">选出你心中最受欢迎的商院人格（可多选，每人限投一次）</div>
+            <div id="popularVoteGrid" class="vote-grid"></div>
+            <div class="vote-submit-area">
+              <button id="submitPopularVote" class="btn-primary" disabled>提交投票</button>
             </div>
-            <div class="stats-item">
-              <div class="k">第一名占比</div>
-              <div class="v" id="topPercent">0%</div>
+          </div>
+          <div id="popularResultArea" style="display:none;">
+            <div class="stats-box">
+              <div class="stats-grid">
+                <div class="stats-item">
+                  <div class="k">总投票数</div>
+                  <div class="v" id="popularTotalCount">0</div>
+                </div>
+                <div class="stats-item">
+                  <div class="k">参与人数</div>
+                  <div class="v" id="popularVoterCount">0</div>
+                </div>
+                <div class="stats-item">
+                  <div class="k">最受欢迎</div>
+                  <div class="v" id="popularTopType">-</div>
+                </div>
+              </div>
             </div>
+            <div id="popularRankList" class="leaderboard-list"></div>
           </div>
         </div>
 
-        <div id="leaderboardList" class="leaderboard-list">
-          <!-- 动态生成 -->
+        <!-- 最被讨厌投票 -->
+        <div id="tab-hated" class="tab-panel">
+          <div id="hatedVoteArea">
+            <div class="vote-instruction">选出你心中最被讨厌的商院人格（可多选，每人限投一次）</div>
+            <div id="hatedVoteGrid" class="vote-grid"></div>
+            <div class="vote-submit-area">
+              <button id="submitHatedVote" class="btn-primary" disabled>提交投票</button>
+            </div>
+          </div>
+          <div id="hatedResultArea" style="display:none;">
+            <div class="stats-box">
+              <div class="stats-grid">
+                <div class="stats-item">
+                  <div class="k">总投票数</div>
+                  <div class="v" id="hatedTotalCount">0</div>
+                </div>
+                <div class="stats-item">
+                  <div class="k">参与人数</div>
+                  <div class="v" id="hatedVoterCount">0</div>
+                </div>
+                <div class="stats-item">
+                  <div class="k">最被讨厌</div>
+                  <div class="v" id="hatedTopType">-</div>
+                </div>
+              </div>
+            </div>
+            <div id="hatedRankList" class="leaderboard-list"></div>
+          </div>
         </div>
 
         <div class="leaderboard-actions">
@@ -1930,16 +2114,27 @@
     document.getElementById('submitBtn').addEventListener('click', renderResultAndSave);
     document.getElementById('restartBtn').addEventListener('click', () => startTest(false));
     document.getElementById('toTopBtn').addEventListener('click', () => showScreen('intro'));
-    document.getElementById('leaderboardBtn').addEventListener('click', () => {
-      renderLeaderboard();
-      showScreen('leaderboard');
-    });
-    document.getElementById('toLeaderboardBtn').addEventListener('click', () => {
-      renderLeaderboard();
-      showScreen('leaderboard');
-    });
+    document.getElementById('leaderboardBtn').addEventListener('click', () => showLeaderboardWithTab('rank'));
+    document.getElementById('toLeaderboardBtn').addEventListener('click', () => showLeaderboardWithTab('rank'));
     document.getElementById('backFromLeaderboardBtn').addEventListener('click', () => showScreen('intro'));
     document.getElementById('startFromLeaderboardBtn').addEventListener('click', () => startTest(false));
+    document.getElementById('popularVoteBtn').addEventListener('click', () => showLeaderboardWithTab('popular'));
+    document.getElementById('hatedVoteBtn').addEventListener('click', () => showLeaderboardWithTab('hated'));
+
+    // Tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    // Vote submit buttons
+    document.getElementById('submitPopularVote').addEventListener('click', () => {
+      handleVoteSubmit('/api/vote-popular', popularSelected, 'wbu_sbti_popular_votes', 'wbu_sbti_popular_voted',
+        'popularRankList', 'popularTotalCount', 'popularTopType', 'popularVoterCount', 'popularVoteArea', 'popularResultArea');
+    });
+    document.getElementById('submitHatedVote').addEventListener('click', () => {
+      handleVoteSubmit('/api/vote-hated', hatedSelected, 'wbu_sbti_hated_votes', 'wbu_sbti_hated_voted',
+        'hatedRankList', 'hatedTotalCount', 'hatedTopType', 'hatedVoterCount', 'hatedVoteArea', 'hatedResultArea');
+    });
 
     // 保存测试结果到 Vercel KV（全球排行榜）
     async function saveResultToLeaderboard(typeCode, typeName) {
@@ -1991,6 +2186,27 @@
       return { total: allResults.length, types: sorted.length, sorted };
     }
 
+    // 从 Vercel KV 获取投票数据
+    async function getVoteStats(apiUrl) {
+      try {
+        const resp = await fetch(apiUrl);
+        if (resp.ok) {
+          return await resp.json();
+        }
+      } catch (e) {
+        console.warn('远端投票数据获取失败:', e);
+      }
+      // 降级到本地
+      const localKey = apiUrl.includes('popular') ? 'wbu_sbti_popular_votes' : 'wbu_sbti_hated_votes';
+      const votedKey = apiUrl.includes('popular') ? 'wbu_sbti_popular_voted' : 'wbu_sbti_hated_voted';
+      const votes = JSON.parse(localStorage.getItem(localKey) || '{}');
+      const sorted = Object.entries(votes)
+        .map(([code, count]) => ({ code, count }))
+        .sort((a, b) => b.count - a.count);
+      const total = sorted.reduce((sum, item) => sum + item.count, 0);
+      return { total, types: sorted.length, sorted, hasVoted: localStorage.getItem(votedKey) === '1' };
+    }
+
     // 渲染排行榜
     async function renderLeaderboard() {
       const stats = await getLeaderboardStats();
@@ -2036,6 +2252,194 @@
         `;
         document.getElementById('topPercent').textContent = '0%';
       }
+    }
+
+    // ====== 投票系统 ======
+    const popularSelected = new Set();
+    const hatedSelected = new Set();
+
+    function renderVoteGrid(containerId, selectedSet) {
+      const container = document.getElementById(containerId);
+      let html = '';
+      const allTypes = Object.keys(TYPE_LIBRARY);
+      allTypes.forEach(code => {
+        const type = TYPE_LIBRARY[code];
+        const isSelected = selectedSet.has(code);
+        html += `
+          <div class="vote-card ${isSelected ? 'selected' : ''}" data-code="${code}">
+            <div class="vote-code">${type.code}</div>
+            <div class="vote-cn">${type.cn}</div>
+            <div class="vote-check">✓ 已选</div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+
+      container.querySelectorAll('.vote-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const code = card.dataset.code;
+          if (selectedSet.has(code)) {
+            selectedSet.delete(code);
+            card.classList.remove('selected');
+          } else {
+            selectedSet.add(code);
+            card.classList.add('selected');
+          }
+          // Update submit button state
+          const submitBtn = containerId === 'popularVoteGrid'
+            ? document.getElementById('submitPopularVote')
+            : document.getElementById('submitHatedVote');
+          submitBtn.disabled = selectedSet.size === 0;
+        });
+      });
+    }
+
+    async function renderVoteResult(apiUrl, rankListId, totalCountId, topTypeId, voterCountId) {
+      const stats = await getVoteStats(apiUrl);
+      const listEl = document.getElementById(rankListId);
+      document.getElementById(totalCountId).textContent = stats.total;
+      // voterCount is same as total since each voter can contribute multiple votes
+      document.getElementById(voterCountId).textContent = stats.total;
+
+      if (stats.sorted && stats.sorted.length > 0) {
+        const topType = TYPE_LIBRARY[stats.sorted[0].code];
+        document.getElementById(topTypeId).textContent = topType ? topType.cn : stats.sorted[0].code;
+
+        let html = '';
+        stats.sorted.forEach((item, index) => {
+          const rank = index + 1;
+          const typeInfo = TYPE_LIBRARY[item.code];
+          const typeName = typeInfo ? `${typeInfo.code} ${typeInfo.cn}` : item.code;
+          const percent = stats.total > 0 ? Math.round((item.count / stats.total) * 100) : 0;
+          let rankClass = 'rank-other';
+          if (rank === 1) rankClass = 'rank-1';
+          if (rank === 2) rankClass = 'rank-2';
+          if (rank === 3) rankClass = 'rank-3';
+          html += `
+            <div class="leaderboard-item">
+              <div class="leaderboard-rank ${rankClass}">${rank}</div>
+              <div class="leaderboard-info">
+                <strong>${typeName}</strong>
+                <span>${typeInfo ? typeInfo.intro : ''}</span>
+              </div>
+              <div>
+                <div class="leaderboard-count">${item.count}</div>
+                <div class="leaderboard-percent">${percent}%</div>
+              </div>
+            </div>
+          `;
+        });
+        listEl.innerHTML = html;
+      } else {
+        listEl.innerHTML = `<div class="empty-state"><p>还没有人投票，快来投出你的一票！</p></div>`;
+        document.getElementById(topTypeId).textContent = '-';
+      }
+    }
+
+    async function handleVoteSubmit(apiUrl, selectedSet, storageKey, votedKey, rankListId, totalCountId, topTypeId, voterCountId, voteAreaId, resultAreaId) {
+      if (selectedSet.size === 0) return;
+
+      const submitBtn = document.getElementById(apiUrl.includes('popular') ? 'submitPopularVote' : 'submitHatedVote');
+      submitBtn.disabled = true;
+      submitBtn.textContent = '提交中...';
+
+      try {
+        const resp = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ votes: Array.from(selectedSet) })
+        });
+
+        if (resp.ok) {
+          localStorage.setItem(votedKey, '1');
+          // 也保存到本地 votes
+          const localVotes = JSON.parse(localStorage.getItem(storageKey) || '{}');
+          selectedSet.forEach(code => {
+            localVotes[code] = (localVotes[code] || 0) + 1;
+          });
+          localStorage.setItem(storageKey, JSON.stringify(localVotes));
+
+          // 显示结果
+          document.getElementById(voteAreaId).style.display = 'none';
+          document.getElementById(resultAreaId).style.display = 'block';
+          await renderVoteResult(apiUrl, rankListId, totalCountId, topTypeId, voterCountId);
+        } else {
+          const data = await resp.json();
+          if (resp.status === 409) {
+            // 已经投过票了
+            localStorage.setItem(votedKey, '1');
+            document.getElementById(voteAreaId).style.display = 'none';
+            document.getElementById(resultAreaId).style.display = 'block';
+            await renderVoteResult(apiUrl, rankListId, totalCountId, topTypeId, voterCountId);
+          } else {
+            alert(data.error || '投票失败，请稍后再试');
+            submitBtn.disabled = false;
+            submitBtn.textContent = '提交投票';
+          }
+        }
+      } catch (e) {
+        console.warn('投票提交失败，已保存到本地:', e);
+        localStorage.setItem(votedKey, '1');
+        const localVotes = JSON.parse(localStorage.getItem(storageKey) || '{}');
+        selectedSet.forEach(code => {
+          localVotes[code] = (localVotes[code] || 0) + 1;
+        });
+        localStorage.setItem(storageKey, JSON.stringify(localVotes));
+        document.getElementById(voteAreaId).style.display = 'none';
+        document.getElementById(resultAreaId).style.display = 'block';
+        await renderVoteResult(apiUrl, rankListId, totalCountId, topTypeId, voterCountId);
+      }
+    }
+
+    async function initPopularVote() {
+      const stats = await getVoteStats('/api/vote-popular');
+      if (stats.hasVoted) {
+        document.getElementById('popularVoteArea').style.display = 'none';
+        document.getElementById('popularResultArea').style.display = 'block';
+        await renderVoteResult('/api/vote-popular', 'popularRankList', 'popularTotalCount', 'popularTopType', 'popularVoterCount');
+      } else {
+        document.getElementById('popularVoteArea').style.display = 'block';
+        document.getElementById('popularResultArea').style.display = 'none';
+        popularSelected.clear();
+        renderVoteGrid('popularVoteGrid', popularSelected);
+        document.getElementById('submitPopularVote').disabled = true;
+        document.getElementById('submitPopularVote').textContent = '提交投票';
+      }
+    }
+
+    async function initHatedVote() {
+      const stats = await getVoteStats('/api/vote-hated');
+      if (stats.hasVoted) {
+        document.getElementById('hatedVoteArea').style.display = 'none';
+        document.getElementById('hatedResultArea').style.display = 'block';
+        await renderVoteResult('/api/vote-hated', 'hatedRankList', 'hatedTotalCount', 'hatedTopType', 'hatedVoterCount');
+      } else {
+        document.getElementById('hatedVoteArea').style.display = 'block';
+        document.getElementById('hatedResultArea').style.display = 'none';
+        hatedSelected.clear();
+        renderVoteGrid('hatedVoteGrid', hatedSelected);
+        document.getElementById('submitHatedVote').disabled = true;
+        document.getElementById('submitHatedVote').textContent = '提交投票';
+      }
+    }
+
+    // Tab switching
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tabName);
+      });
+      document.querySelectorAll('.tab-panel').forEach(panel => {
+        panel.classList.toggle('active', panel.id === 'tab-' + tabName);
+      });
+      // Init content for the selected tab
+      if (tabName === 'popular') initPopularVote();
+      if (tabName === 'hated') initHatedVote();
+    }
+
+    async function showLeaderboardWithTab(tabName) {
+      showScreen('leaderboard');
+      switchTab(tabName);
+      if (tabName === 'rank') await renderLeaderboard();
     }
   </script>
 
