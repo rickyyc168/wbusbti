@@ -948,6 +948,15 @@
         font-size: 13px;
       }
     }
+
+    /* Tab panel transition */
+    .tab-panel {
+      animation: fadeIn .2s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
   </style>
 </head>
 <body>
@@ -2209,7 +2218,9 @@
 
     // 渲染排行榜
     async function renderLeaderboard() {
-      const stats = await getLeaderboardStats();
+      let stats = cacheGet('leaderboard');
+      if (!stats) stats = await getLeaderboardStats();
+      cacheSet('leaderboard', stats);
       const listEl = document.getElementById('leaderboardList');
       document.getElementById('totalCount').textContent = stats.total;
       document.getElementById('typeCount').textContent = stats.types;
@@ -2254,27 +2265,42 @@
       }
     }
 
+    // ====== 数据缓存层 ======
+    const _cache = {};
+    function cacheGet(key) {
+      const item = _cache[key];
+      if (!item) return null;
+      if (Date.now() - item.ts > 30000) { delete _cache[key]; return null; }
+      return item.data;
+    }
+    function cacheSet(key, data) { _cache[key] = { data, ts: Date.now() }; }
+
     // ====== 投票系统 ======
     const popularSelected = new Set();
     const hatedSelected = new Set();
+    let _gridsRendered = false;
+    let _rankRendered = false;
+    let _popularResultRendered = false;
+    let _hatedResultRendered = false;
+    let _leaderboardLoading = false;
 
-    function renderVoteGrid(containerId, selectedSet) {
-      const container = document.getElementById(containerId);
-      let html = '';
+    function buildVoteGridHTML(selectedSet) {
       const allTypes = Object.keys(TYPE_LIBRARY);
-      allTypes.forEach(code => {
+      return allTypes.map(code => {
         const type = TYPE_LIBRARY[code];
         const isSelected = selectedSet.has(code);
-        html += `
+        return `
           <div class="vote-card ${isSelected ? 'selected' : ''}" data-code="${code}">
             <div class="vote-code">${type.code}</div>
             <div class="vote-cn">${type.cn}</div>
             <div class="vote-check">✓ 已选</div>
           </div>
         `;
-      });
-      container.innerHTML = html;
+      }).join('');
+    }
 
+    function bindVoteGrid(containerId, selectedSet, submitBtnId) {
+      const container = document.getElementById(containerId);
       container.querySelectorAll('.vote-card').forEach(card => {
         card.addEventListener('click', () => {
           const code = card.dataset.code;
@@ -2285,55 +2311,57 @@
             selectedSet.add(code);
             card.classList.add('selected');
           }
-          // Update submit button state
-          const submitBtn = containerId === 'popularVoteGrid'
-            ? document.getElementById('submitPopularVote')
-            : document.getElementById('submitHatedVote');
-          submitBtn.disabled = selectedSet.size === 0;
+          document.getElementById(submitBtnId).disabled = selectedSet.size === 0;
         });
       });
     }
 
+    function renderVoteGridsOnce() {
+      if (_gridsRendered) return;
+      document.getElementById('popularVoteGrid').innerHTML = buildVoteGridHTML(popularSelected);
+      document.getElementById('hatedVoteGrid').innerHTML = buildVoteGridHTML(hatedSelected);
+      bindVoteGrid('popularVoteGrid', popularSelected, 'submitPopularVote');
+      bindVoteGrid('hatedVoteGrid', hatedSelected, 'submitHatedVote');
+      _gridsRendered = true;
+    }
+
+    function renderVoteResultHTML(stats) {
+      if (!stats.sorted || stats.sorted.length === 0) {
+        return `<div class="empty-state"><p>还没有人投票，快来投出你的一票！</p></div>`;
+      }
+      return stats.sorted.map((item, index) => {
+        const rank = index + 1;
+        const typeInfo = TYPE_LIBRARY[item.code];
+        const typeName = typeInfo ? `${typeInfo.code} ${typeInfo.cn}` : item.code;
+        const percent = stats.total > 0 ? Math.round((item.count / stats.total) * 100) : 0;
+        let rankClass = 'rank-other';
+        if (rank === 1) rankClass = 'rank-1';
+        if (rank === 2) rankClass = 'rank-2';
+        if (rank === 3) rankClass = 'rank-3';
+        return `
+          <div class="leaderboard-item">
+            <div class="leaderboard-rank ${rankClass}">${rank}</div>
+            <div class="leaderboard-info">
+              <strong>${typeName}</strong>
+              <span>${typeInfo ? typeInfo.intro : ''}</span>
+            </div>
+            <div>
+              <div class="leaderboard-count">${item.count}</div>
+              <div class="leaderboard-percent">${percent}%</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
     async function renderVoteResult(apiUrl, rankListId, totalCountId, topTypeId, voterCountId) {
       const stats = await getVoteStats(apiUrl);
-      const listEl = document.getElementById(rankListId);
+      cacheSet(apiUrl, stats);
       document.getElementById(totalCountId).textContent = stats.total;
-      // voterCount is same as total since each voter can contribute multiple votes
       document.getElementById(voterCountId).textContent = stats.total;
-
-      if (stats.sorted && stats.sorted.length > 0) {
-        const topType = TYPE_LIBRARY[stats.sorted[0].code];
-        document.getElementById(topTypeId).textContent = topType ? topType.cn : stats.sorted[0].code;
-
-        let html = '';
-        stats.sorted.forEach((item, index) => {
-          const rank = index + 1;
-          const typeInfo = TYPE_LIBRARY[item.code];
-          const typeName = typeInfo ? `${typeInfo.code} ${typeInfo.cn}` : item.code;
-          const percent = stats.total > 0 ? Math.round((item.count / stats.total) * 100) : 0;
-          let rankClass = 'rank-other';
-          if (rank === 1) rankClass = 'rank-1';
-          if (rank === 2) rankClass = 'rank-2';
-          if (rank === 3) rankClass = 'rank-3';
-          html += `
-            <div class="leaderboard-item">
-              <div class="leaderboard-rank ${rankClass}">${rank}</div>
-              <div class="leaderboard-info">
-                <strong>${typeName}</strong>
-                <span>${typeInfo ? typeInfo.intro : ''}</span>
-              </div>
-              <div>
-                <div class="leaderboard-count">${item.count}</div>
-                <div class="leaderboard-percent">${percent}%</div>
-              </div>
-            </div>
-          `;
-        });
-        listEl.innerHTML = html;
-      } else {
-        listEl.innerHTML = `<div class="empty-state"><p>还没有人投票，快来投出你的一票！</p></div>`;
-        document.getElementById(topTypeId).textContent = '-';
-      }
+      const topType = stats.sorted && stats.sorted[0] ? TYPE_LIBRARY[stats.sorted[0].code] : null;
+      document.getElementById(topTypeId).textContent = topType ? topType.cn : '-';
+      document.getElementById(rankListId).innerHTML = renderVoteResultHTML(stats);
     }
 
     async function handleVoteSubmit(apiUrl, selectedSet, storageKey, votedKey, rankListId, totalCountId, topTypeId, voterCountId, voteAreaId, resultAreaId) {
@@ -2352,21 +2380,17 @@
 
         if (resp.ok) {
           localStorage.setItem(votedKey, '1');
-          // 也保存到本地 votes
           const localVotes = JSON.parse(localStorage.getItem(storageKey) || '{}');
-          selectedSet.forEach(code => {
-            localVotes[code] = (localVotes[code] || 0) + 1;
-          });
+          selectedSet.forEach(code => { localVotes[code] = (localVotes[code] || 0) + 1; });
           localStorage.setItem(storageKey, JSON.stringify(localVotes));
-
-          // 显示结果
+          // 清除缓存以便重新拉取
+          delete _cache[apiUrl];
           document.getElementById(voteAreaId).style.display = 'none';
           document.getElementById(resultAreaId).style.display = 'block';
           await renderVoteResult(apiUrl, rankListId, totalCountId, topTypeId, voterCountId);
         } else {
           const data = await resp.json();
           if (resp.status === 409) {
-            // 已经投过票了
             localStorage.setItem(votedKey, '1');
             document.getElementById(voteAreaId).style.display = 'none';
             document.getElementById(resultAreaId).style.display = 'block';
@@ -2381,9 +2405,7 @@
         console.warn('投票提交失败，已保存到本地:', e);
         localStorage.setItem(votedKey, '1');
         const localVotes = JSON.parse(localStorage.getItem(storageKey) || '{}');
-        selectedSet.forEach(code => {
-          localVotes[code] = (localVotes[code] || 0) + 1;
-        });
+        selectedSet.forEach(code => { localVotes[code] = (localVotes[code] || 0) + 1; });
         localStorage.setItem(storageKey, JSON.stringify(localVotes));
         document.getElementById(voteAreaId).style.display = 'none';
         document.getElementById(resultAreaId).style.display = 'block';
@@ -2392,54 +2414,103 @@
     }
 
     async function initPopularVote() {
+      // 投票网格只渲染一次
+      renderVoteGridsOnce();
       const stats = await getVoteStats('/api/vote-popular');
+      cacheSet('/api/vote-popular', stats);
       if (stats.hasVoted) {
         document.getElementById('popularVoteArea').style.display = 'none';
         document.getElementById('popularResultArea').style.display = 'block';
-        await renderVoteResult('/api/vote-popular', 'popularRankList', 'popularTotalCount', 'popularTopType', 'popularVoterCount');
+        if (!_popularResultRendered) {
+          document.getElementById('popularTotalCount').textContent = stats.total;
+          document.getElementById('popularVoterCount').textContent = stats.total;
+          const topType = stats.sorted && stats.sorted[0] ? TYPE_LIBRARY[stats.sorted[0].code] : null;
+          document.getElementById('popularTopType').textContent = topType ? topType.cn : '-';
+          document.getElementById('popularRankList').innerHTML = renderVoteResultHTML(stats);
+          _popularResultRendered = true;
+        }
       } else {
         document.getElementById('popularVoteArea').style.display = 'block';
         document.getElementById('popularResultArea').style.display = 'none';
+        // 重置选择状态但不重新渲染 DOM
         popularSelected.clear();
-        renderVoteGrid('popularVoteGrid', popularSelected);
+        document.querySelectorAll('#popularVoteGrid .vote-card.selected').forEach(c => c.classList.remove('selected'));
         document.getElementById('submitPopularVote').disabled = true;
         document.getElementById('submitPopularVote').textContent = '提交投票';
       }
     }
 
     async function initHatedVote() {
+      renderVoteGridsOnce();
       const stats = await getVoteStats('/api/vote-hated');
+      cacheSet('/api/vote-hated', stats);
       if (stats.hasVoted) {
         document.getElementById('hatedVoteArea').style.display = 'none';
         document.getElementById('hatedResultArea').style.display = 'block';
-        await renderVoteResult('/api/vote-hated', 'hatedRankList', 'hatedTotalCount', 'hatedTopType', 'hatedVoterCount');
+        if (!_hatedResultRendered) {
+          document.getElementById('hatedTotalCount').textContent = stats.total;
+          document.getElementById('hatedVoterCount').textContent = stats.total;
+          const topType = stats.sorted && stats.sorted[0] ? TYPE_LIBRARY[stats.sorted[0].code] : null;
+          document.getElementById('hatedTopType').textContent = topType ? topType.cn : '-';
+          document.getElementById('hatedRankList').innerHTML = renderVoteResultHTML(stats);
+          _hatedResultRendered = true;
+        }
       } else {
         document.getElementById('hatedVoteArea').style.display = 'block';
         document.getElementById('hatedResultArea').style.display = 'none';
         hatedSelected.clear();
-        renderVoteGrid('hatedVoteGrid', hatedSelected);
+        document.querySelectorAll('#hatedVoteGrid .vote-card.selected').forEach(c => c.classList.remove('selected'));
         document.getElementById('submitHatedVote').disabled = true;
         document.getElementById('submitHatedVote').textContent = '提交投票';
       }
     }
 
-    // Tab switching
+    // Tab switching — 同步切换 UI，异步数据加载不阻塞
+    let _currentTab = '';
     function switchTab(tabName) {
+      if (_currentTab === tabName) return;
+      _currentTab = tabName;
       document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.tab === tabName);
       });
       document.querySelectorAll('.tab-panel').forEach(panel => {
         panel.classList.toggle('active', panel.id === 'tab-' + tabName);
       });
-      // Init content for the selected tab
+      // 后台加载数据，不阻塞 tab 切换动画
       if (tabName === 'popular') initPopularVote();
       if (tabName === 'hated') initHatedVote();
     }
 
+    // 预加载所有数据
+    async function preloadLeaderboardData() {
+      // 并行请求三个接口
+      await Promise.allSettled([
+        getLeaderboardStats().then(data => { cacheSet('leaderboard', data); }),
+        getVoteStats('/api/vote-popular').then(data => { cacheSet('/api/vote-popular', data); }),
+        getVoteStats('/api/vote-hated').then(data => { cacheSet('/api/vote-hated', data); })
+      ]);
+    }
+
     async function showLeaderboardWithTab(tabName) {
+      if (_leaderboardLoading) return;
+      _leaderboardLoading = true;
       showScreen('leaderboard');
+      _currentTab = '';
       switchTab(tabName);
-      if (tabName === 'rank') await renderLeaderboard();
+
+      // 预加载所有数据（首次）
+      await preloadLeaderboardData();
+
+      if (tabName === 'rank') {
+        const cached = cacheGet('leaderboard');
+        if (cached && _rankRendered) {
+          // 已经渲染过，直接用缓存
+        } else {
+          await renderLeaderboard();
+          _rankRendered = true;
+        }
+      }
+      _leaderboardLoading = false;
     }
   </script>
 
