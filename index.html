@@ -1941,28 +1941,44 @@
     document.getElementById('backFromLeaderboardBtn').addEventListener('click', () => showScreen('intro'));
     document.getElementById('startFromLeaderboardBtn').addEventListener('click', () => startTest(false));
 
-    // 保存测试结果到本地存储（武汉商学院排行榜）
-    function saveResultToLeaderboard(typeCode, typeName) {
+    // 保存测试结果到 Vercel KV（全球排行榜）
+    async function saveResultToLeaderboard(typeCode, typeName) {
       const storageKey = 'wbu_sbti_leaderboard';
       const allResults = JSON.parse(localStorage.getItem(storageKey) || '[]');
-      allResults.push({
-        typeCode: typeCode,
-        typeName: typeName,
-        timestamp: Date.now()
-      });
+      allResults.push({ typeCode, typeName, timestamp: Date.now() });
       localStorage.setItem(storageKey, JSON.stringify(allResults));
+
+      try {
+        await fetch('/api/leaderboard', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ typeCode, typeName })
+        });
+      } catch (e) {
+        console.warn('排行榜同步失败，已保存到本地:', e);
+      }
     }
 
     // 渲染结果并保存
-    function renderResultAndSave() {
+    async function renderResultAndSave() {
       renderResult();
       const result = computeResult();
       const type = result.finalType;
-      saveResultToLeaderboard(type.code, type.cn);
+      await saveResultToLeaderboard(type.code, type.cn);
     }
 
-    // 获取统计数据
-    function getLeaderboardStats() {
+    // 从 Vercel KV 获取排行榜数据，失败时降级到 localStorage
+    async function getLeaderboardStats() {
+      try {
+        const resp = await fetch('/api/leaderboard');
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.total > 0) return data;
+        }
+      } catch (e) {
+        console.warn('远端排行榜获取失败，使用本地数据:', e);
+      }
+
       const storageKey = 'wbu_sbti_leaderboard';
       const allResults = JSON.parse(localStorage.getItem(storageKey) || '[]');
       const counts = {};
@@ -1972,16 +1988,12 @@
       const sorted = Object.entries(counts)
         .map(([code, count]) => ({ code, count }))
         .sort((a, b) => b.count - a.count);
-      return {
-        total: allResults.length,
-        types: sorted.length,
-        sorted
-      };
+      return { total: allResults.length, types: sorted.length, sorted };
     }
 
     // 渲染排行榜
-    function renderLeaderboard() {
-      const stats = getLeaderboardStats();
+    async function renderLeaderboard() {
+      const stats = await getLeaderboardStats();
       const listEl = document.getElementById('leaderboardList');
       document.getElementById('totalCount').textContent = stats.total;
       document.getElementById('typeCount').textContent = stats.types;
