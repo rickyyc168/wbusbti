@@ -2,7 +2,9 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <title>武汉商学院 SBTI 人格测试</title>
   <style>
     :root {
@@ -19,13 +21,15 @@
     }
 
     * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; }
+    html, body { margin: 0; padding: 0; -webkit-text-size-adjust: 100%; }
+    html { touch-action: manipulation; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
       background:
-        radial-gradient(circle at top left, #f8fff8 0, #f6faf6 36%, #f2f7f3 100%);
+        radial-gradient(circle at top left, #f8fbff 0, #f5f8fc 36%, #f2f7fc 100%);
       color: var(--text);
       min-height: 100vh;
+      -webkit-tap-highlight-color: transparent;
     }
 
     .shell {
@@ -154,19 +158,21 @@
     .btn-primary {
       background: var(--accent-strong);
       color: #fff;
-      padding: 14px 20px;
+      padding: 16px 24px;
       border-radius: 14px;
-      box-shadow: 0 12px 30px rgba(77, 106, 83, 0.18);
+      box-shadow: 0 12px 30px rgba(45, 90, 150, 0.18);
       font-weight: 700;
+      min-height: 48px;
     }
 
     .btn-secondary {
       background: #fff;
       color: var(--accent-strong);
-      padding: 14px 20px;
+      padding: 16px 24px;
       border-radius: 14px;
       border: 1px solid var(--line);
       font-weight: 700;
+      min-height: 48px;
     }
 
     .screen { display: none; }
@@ -189,8 +195,8 @@
 
     .progress {
       flex: 1;
-      min-width: 240px;
-      height: 10px;
+      min-width: 180px;
+      height: 8px;
       background: #edf3ee;
       border-radius: 999px;
       overflow: hidden;
@@ -260,11 +266,12 @@
       display: flex;
       align-items: flex-start;
       gap: 12px;
-      padding: 14px 14px;
+      padding: 16px 14px;
       border-radius: 14px;
       border: 1px solid var(--line);
       background: #fff;
       transition: border-color .16s ease, background .16s ease, transform .16s ease;
+      cursor: pointer;
     }
 
     .option:hover {
@@ -675,11 +682,28 @@
 
     @media (max-width: 600px) {
       .shell { padding: 14px 12px 42px; }
-      .hero, .test-wrap, .result-wrap { padding: 16px; }
-      .hero h1 { font-size: 32px; }
+      .hero, .test-wrap, .result-wrap, .leaderboard-wrap { padding: 16px; }
+      .hero h1 { font-size: 28px; }
       .question-title { font-size: 15px; }
+      .question { padding: 14px 12px; }
+      .option { padding: 12px 10px; }
       .dim-grid,
       .score-grid { grid-template-columns: 1fr; }
+      .leaderboard-rank {
+        width: 30px;
+        height: 30px;
+        font-size: 14px;
+      }
+      .leaderboard-info strong { font-size: 14px; }
+      .leaderboard-count { font-size: 16px; }
+      .stats-grid { grid-template-columns: 1fr !important; }
+      .result-actions button {
+        width: 100%;
+        justify-content: center;
+      }
+      .hero-actions button {
+        width: 100%;
+      }
     }
 
     /* 排行榜样式 */
@@ -697,20 +721,21 @@
 
     .leaderboard-list {
       display: grid;
-      gap: 12px;
+      gap: 10px;
       margin-bottom: 22px;
     }
 
     .leaderboard-item {
       border: 1px solid var(--line);
       border-radius: 14px;
-      padding: 16px;
+      padding: 12px 10px;
       background: #fff;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
       transition: all .16s ease;
+      touch-action: manipulation;
     }
 
     .leaderboard-item:hover {
