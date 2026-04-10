@@ -3,18 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SBTI 人格测试</title>
+  <title>武汉商学院 SBTI 人格测试</title>
   <style>
     :root {
-      --bg: #f6faf6;
+      --bg: #f5f8fc;
       --panel: #ffffff;
-      --text: #1e2a22;
-      --muted: #6a786f;
-      --line: #dbe8dd;
-      --soft: #edf6ef;
-      --accent: #6c8d71;
-      --accent-strong: #4d6a53;
-      --shadow: 0 16px 40px rgba(47, 73, 55, 0.08);
+      --text: #1a2432;
+      --muted: #5e6b7a;
+      --line: #d4e0f0;
+      --soft: #eaf4ff;
+      --accent: #4a7bbc;
+      --accent-strong: #2d5a96;
+      --shadow: 0 16px 40px rgba(45, 90, 150, 0.08);
       --radius: 22px;
     }
 
@@ -681,15 +681,143 @@
       .dim-grid,
       .score-grid { grid-template-columns: 1fr; }
     }
+
+    /* 排行榜样式 */
+    .leaderboard-wrap {
+      margin-top: 22px;
+      padding: 22px;
+    }
+
+    .leaderboard-intro {
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 18px;
+      line-height: 1.7;
+    }
+
+    .leaderboard-list {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+
+    .leaderboard-item {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      background: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      transition: all .16s ease;
+    }
+
+    .leaderboard-item:hover {
+      border-color: var(--accent);
+      background: var(--soft);
+    }
+
+    .leaderboard-rank {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .rank-1 { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
+    .rank-2 { background: linear-gradient(135deg, #9ca3af, #6b7280); }
+    .rank-3 { background: linear-gradient(135deg, #cd7f32, #a0522d); }
+    .rank-other { background: var(--line); color: var(--muted); }
+
+    .leaderboard-info {
+      flex: 1;
+    }
+
+    .leaderboard-info strong {
+      display: block;
+      font-size: 16px;
+      color: var(--text);
+    }
+
+    .leaderboard-info span {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .leaderboard-count {
+      font-weight: 800;
+      color: var(--accent-strong);
+      font-size: 18px;
+    }
+
+    .leaderboard-percent {
+      font-size: 12px;
+      color: var(--muted);
+      text-align: right;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--muted);
+    }
+
+    .leaderboard-actions {
+      margin-top: 18px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .stats-box {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      background: linear-gradient(180deg, #fbfefb, #f3f8f4);
+      margin-bottom: 18px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      text-align: center;
+    }
+
+    .stats-item .k {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .stats-item .v {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--accent-strong);
+    }
+
+    @media (max-width: 600px) {
+      .stats-grid { grid-template-columns: 1fr; }
+      .leaderboard-wrap { padding: 16px; }
+    }
   </style>
 </head>
 <body>
   <div class="shell">
     <section id="intro" class="screen active">
       <div class="hero card hero-minimal">
-        <h1>MBTI已经过时，SBTI来了。</h1>
+        <h1>武汉商学院 · SBTI 人格测试</h1>
+        <div class="sub" style="margin-top: 1rem; color: var(--muted);">MBTI已经过时，SBTI来了！测出你的人格，看看武商院哪种人格最多👇</div>
         <div class="hero-actions hero-actions-single">
           <button id="startBtn" class="btn-primary">开始测试</button>
+          <button id="leaderboardBtn" class="btn-secondary">查看人格排行榜</button>
         </div>
         <div style="padding-top: 2rem; display: flex; flex-direction: column;">
           <span>
@@ -697,10 +825,7 @@
             <a href="https://space.bilibili.com/417038183">B站@蛆肉儿串儿</a>
           </span>
           <span>
-            托管：Cloudflare (免费)
-          </span>
-          <span>
-            域名：Spaceship (自费)
+            武汉商学院本地化 · 含校内人格排行榜
           </span>
         </div>
       </div>
@@ -772,8 +897,44 @@
         <div class="result-actions">
           <div style="display:flex; gap:12px; flex-wrap:wrap;">
             <button id="restartBtn" class="btn-secondary">重新测试</button>
+            <button id="toLeaderboardBtn" class="btn-secondary">查看排行榜</button>
             <button id="toTopBtn" class="btn-primary">回到首页</button>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="leaderboard" class="screen">
+      <div class="leaderboard-wrap card">
+        <h2>武汉商学院 · 人格排行榜</h2>
+        <div class="leaderboard-intro">
+          所有武商院同学测试结果的统计，看看哪种人格在校内人数最多！
+        </div>
+
+        <div class="stats-box">
+          <div class="stats-grid">
+            <div class="stats-item">
+              <div class="k">总测试人数</div>
+              <div class="v" id="totalCount">0</div>
+            </div>
+            <div class="stats-item">
+              <div class="k">人格类型数</div>
+              <div class="v" id="typeCount">0</div>
+            </div>
+            <div class="stats-item">
+              <div class="k">第一名占比</div>
+              <div class="v" id="topPercent">0%</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="leaderboardList" class="leaderboard-list">
+          <!-- 动态生成 -->
+        </div>
+
+        <div class="leaderboard-actions">
+          <button id="backFromLeaderboardBtn" class="btn-secondary">返回首页</button>
+          <button id="startFromLeaderboardBtn" class="btn-primary">我也来测试</button>
         </div>
       </div>
     </section>
@@ -1482,7 +1643,8 @@
     const screens = {
       intro: document.getElementById('intro'),
       test: document.getElementById('test'),
-      result: document.getElementById('result')
+      result: document.getElementById('result'),
+      leaderboard: document.getElementById('leaderboard')
     };
 
     const questionList = document.getElementById('questionList');
@@ -1738,9 +1900,104 @@
 
     document.getElementById('startBtn').addEventListener('click', () => startTest(false));
     document.getElementById('backIntroBtn').addEventListener('click', () => showScreen('intro'));
-    document.getElementById('submitBtn').addEventListener('click', renderResult);
+    document.getElementById('submitBtn').addEventListener('click', renderResultAndSave);
     document.getElementById('restartBtn').addEventListener('click', () => startTest(false));
     document.getElementById('toTopBtn').addEventListener('click', () => showScreen('intro'));
+    document.getElementById('leaderboardBtn').addEventListener('click', () => {
+      renderLeaderboard();
+      showScreen('leaderboard');
+    });
+    document.getElementById('toLeaderboardBtn').addEventListener('click', () => {
+      renderLeaderboard();
+      showScreen('leaderboard');
+    });
+    document.getElementById('backFromLeaderboardBtn').addEventListener('click', () => showScreen('intro'));
+    document.getElementById('startFromLeaderboardBtn').addEventListener('click', () => startTest(false));
+
+    // 保存测试结果到本地存储（武汉商学院排行榜）
+    function saveResultToLeaderboard(typeCode, typeName) {
+      const storageKey = 'wbu_sbti_leaderboard';
+      const allResults = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      allResults.push({
+        typeCode: typeCode,
+        typeName: typeName,
+        timestamp: Date.now()
+      });
+      localStorage.setItem(storageKey, JSON.stringify(allResults));
+    }
+
+    // 渲染结果并保存
+    function renderResultAndSave() {
+      renderResult();
+      const result = computeResult();
+      const type = result.finalType;
+      saveResultToLeaderboard(type.code, type.cn);
+    }
+
+    // 获取统计数据
+    function getLeaderboardStats() {
+      const storageKey = 'wbu_sbti_leaderboard';
+      const allResults = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      const counts = {};
+      allResults.forEach(item => {
+        counts[item.typeCode] = (counts[item.typeCode] || 0) + 1;
+      });
+      const sorted = Object.entries(counts)
+        .map(([code, count]) => ({ code, count }))
+        .sort((a, b) => b.count - a.count);
+      return {
+        total: allResults.length,
+        types: sorted.length,
+        sorted
+      };
+    }
+
+    // 渲染排行榜
+    function renderLeaderboard() {
+      const stats = getLeaderboardStats();
+      const listEl = document.getElementById('leaderboardList');
+      document.getElementById('totalCount').textContent = stats.total;
+      document.getElementById('typeCount').textContent = stats.types;
+
+      if (stats.total > 0 && stats.sorted.length > 0) {
+        const topCount = stats.sorted[0].count;
+        const topPercent = Math.round((topCount / stats.total) * 100);
+        document.getElementById('topPercent').textContent = topPercent + '%';
+
+        let html = '';
+        stats.sorted.forEach((item, index) => {
+          const rank = index + 1;
+          const typeInfo = TYPE_LIBRARY[item.code];
+          const typeName = typeInfo ? `${typeInfo.code} ${typeInfo.cn}` : item.code;
+          const percent = Math.round((item.count / stats.total) * 100);
+          let rankClass = 'rank-other';
+          if (rank === 1) rankClass = 'rank-1';
+          if (rank === 2) rankClass = 'rank-2';
+          if (rank === 3) rankClass = 'rank-3';
+          html += `
+            <div class="leaderboard-item">
+              <div class="leaderboard-rank ${rankClass}">${rank}</div>
+              <div class="leaderboard-info">
+                <strong>${typeName}</strong>
+                <span>${TYPE_LIBRARY[item.code] ? TYPE_LIBRARY[item.code].intro : ''}</span>
+              </div>
+              <div>
+                <div class="leaderboard-count">${item.count}</div>
+                <div class="leaderboard-percent">${percent}%</div>
+              </div>
+            </div>
+          `;
+        });
+        listEl.innerHTML = html;
+      } else {
+        listEl.innerHTML = `
+          <div class="empty-state">
+            <p>还没有人测试过，快来成为第一个吧！</p>
+          </div>
+        `;
+        document.getElementById('topPercent').textContent = '0%';
+      }
+    }
   </script>
 
 </body>
