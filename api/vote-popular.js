@@ -3,19 +3,13 @@ import { kv } from '@vercel/kv';
 const VOTE_KEY = 'wbu_sbti_popular_votes';
 const VOTED_ZSET = 'wbu_sbti_popular_voted';  // sorted set: IP → timestamp
 const RATE_LIMIT_PREFIX = 'wbu_sbti_rl:';
-const VOTE_EXPIRE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const VOTE_EXPIRE_MS = 365 * 24 * 60 * 60 * 1000; // 365 days
 
 async function checkRateLimit(ip) {
   const key = RATE_LIMIT_PREFIX + ip;
   const count = await kv.incr(key);
   if (count === 1) await kv.expire(key, 30);
   return count <= 10;
-}
-
-// Cleanup expired entries from voted zset
-async function cleanupVoted() {
-  const cutoff = Date.now() - VOTE_EXPIRE_MS;
-  await kv.zremrangebyscore(VOTED_ZSET, 0, cutoff);
 }
 
 export default async function handler(req, res) {
@@ -68,9 +62,6 @@ export default async function handler(req, res) {
       }
       pipeline.zadd(VOTED_ZSET, { score: Date.now(), member: ip });
       await pipeline.exec();
-
-      // Periodic cleanup (1% chance per request)
-      if (Math.random() < 0.01) await cleanupVoted();
 
       return res.status(200).json({ ok: true });
     }
