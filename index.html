@@ -2150,6 +2150,8 @@
       const storageKey = 'wbu_sbti_leaderboard';
       const allResults = JSON.parse(localStorage.getItem(storageKey) || '[]');
       allResults.push({ typeCode, typeName, timestamp: Date.now() });
+      // 只保留最近 100 条，防止 localStorage 膨胀
+      if (allResults.length > 100) allResults.splice(0, allResults.length - 100);
       localStorage.setItem(storageKey, JSON.stringify(allResults));
 
       try {
@@ -2176,8 +2178,15 @@
       try {
         const resp = await fetch('/api/leaderboard');
         if (resp.ok) {
-          const data = await resp.json();
-          if (data.total > 0) return data;
+          const raw = await resp.json();
+          // 新格式 { s:[[code,count],...] }
+          if (raw.s && raw.s.length > 0) {
+            const sorted = raw.s.map(([code, count]) => ({ code, count }));
+            const total = sorted.reduce((s, i) => s + i.count, 0);
+            return { total, types: sorted.length, sorted };
+          }
+          // 旧格式兼容
+          if (raw.total > 0) return raw;
         }
       } catch (e) {
         console.warn('远端排行榜获取失败，使用本地数据:', e);
@@ -2195,17 +2204,24 @@
       return { total: allResults.length, types: sorted.length, sorted };
     }
 
-    // 从 Vercel KV 获取投票数据
+    // 从 Vercel KV 获取投票数据 — 新格式 { s:[[code,count],...], v:bool }
     async function getVoteStats(apiUrl) {
       try {
         const resp = await fetch(apiUrl);
         if (resp.ok) {
-          return await resp.json();
+          const raw = await resp.json();
+          // 兼容新格式
+          if (raw.s) {
+            const sorted = raw.s.map(([code, count]) => ({ code, count }));
+            const total = sorted.reduce((sum, item) => sum + item.count, 0);
+            return { total, types: sorted.length, sorted, hasVoted: raw.v };
+          }
+          // 兼容旧格式
+          return raw;
         }
       } catch (e) {
         console.warn('远端投票数据获取失败:', e);
       }
-      // 降级到本地
       const localKey = apiUrl.includes('popular') ? 'wbu_sbti_popular_votes' : 'wbu_sbti_hated_votes';
       const votedKey = apiUrl.includes('popular') ? 'wbu_sbti_popular_voted' : 'wbu_sbti_hated_voted';
       const votes = JSON.parse(localStorage.getItem(localKey) || '{}');

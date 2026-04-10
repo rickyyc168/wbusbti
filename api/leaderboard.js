@@ -7,7 +7,7 @@ async function checkRateLimit(ip) {
   const key = RATE_LIMIT_PREFIX + ip;
   const count = await kv.incr(key);
   if (count === 1) {
-    await kv.expire(key, 60);
+    await kv.expire(key, 30);
   }
   return count <= 10;
 }
@@ -26,18 +26,15 @@ export default async function handler(req, res) {
       const data = await kv.hgetall(LEADERBOARD_KEY);
 
       if (!data || Object.keys(data).length === 0) {
-        return res.status(200).json({ total: 0, types: 0, sorted: [] });
+        return res.status(200).json({ s: [] });
       }
 
-      let total = 0;
-      const entries = Object.entries(data).map(([code, count]) => {
-        const n = Number(count) || 0;
-        total += n;
-        return { code, count: n };
-      });
-      entries.sort((a, b) => b.count - a.count);
+      const entries = Object.entries(data)
+        .map(([c, n]) => [c, Number(n) || 0])
+        .filter(([, n]) => n > 0)
+        .sort((a, b) => b[1] - a[1]);
 
-      return res.status(200).json({ total, types: entries.length, sorted: entries });
+      return res.status(200).json({ s: entries });
     }
 
     if (req.method === 'POST') {
